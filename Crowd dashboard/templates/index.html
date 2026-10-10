@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Crowd Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #040918;
+    --panel: #09112b;
+    --panel-2: #0d1838;
+    --line: #17306a;
+    --text: #e8f0ff;
+    --muted: #7e92c6;
+    --cyan: #27e1ff;
+    --blue: #3d7bff;
+    --pink: #ff3d8b;
+    --accent: var(--cyan);          /* switches to pink in warning state */
+    --glow: rgba(39, 225, 255, .35);
+    --font: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  }
+  body.warning { --accent: var(--pink); --glow: rgba(255, 61, 139, .4); }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background:
+      radial-gradient(900px 500px at 12% -10%, rgba(61,123,255,.18), transparent 60%),
+      radial-gradient(700px 420px at 100% 0%, var(--glow), transparent 65%),
+      var(--bg);
+    background-attachment: fixed;
+    transition: background .6s;
+    padding: clamp(16px, 3vw, 36px);
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+
+  header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: clamp(1.3rem, 2.4vw, 1.8rem); font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: .95rem;
+    color: var(--accent); border: 1px solid var(--accent);
+    background: rgba(255,255,255,.02);
+    box-shadow: 0 0 18px var(--glow), inset 0 0 12px var(--glow);
+    transition: all .4s;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  body.warning .dot { animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .label { color: var(--muted); font-size: .92rem; }
+  .unit { color: var(--muted); font-size: .9rem; margin-left: 6px; font-weight: 400; }
+
+  .top { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; }
+  .hero { display: grid; align-content: center; min-height: 250px; border-color: var(--accent);
+          box-shadow: 0 0 32px var(--glow), inset 0 0 40px rgba(61,123,255,.06); transition: all .5s; }
+  .hero .big {
+    font-size: clamp(5rem, 13vw, 8.5rem); line-height: 1; font-weight: 700; margin: 8px 0 2px;
+    color: var(--accent); text-shadow: 0 0 28px var(--glow), 0 0 4px var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .hero .note { color: var(--muted); }
+
+  .metrics { display: grid; gap: 18px; grid-template-rows: repeat(3, 1fr); }
+  .metric { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 18px 22px; }
+  .metric .val { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric.predicted .val { color: var(--accent); text-shadow: 0 0 14px var(--glow); }
+
+  .chart-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .legend { display: flex; gap: 16px; color: var(--muted); font-size: .85rem; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+  canvas { width: 100%; height: 280px; display: block; }
+
+  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .rec { font-size: 1.25rem; font-weight: 500; margin-top: 6px; }
+  .wait { font-size: 1.25rem; font-weight: 500; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  button {
+    font: inherit; color: var(--text); background: transparent; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 16px;
+    transition: border-color .2s, box-shadow .2s, color .2s;
+  }
+  button:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(39,225,255,.3); }
+  button[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(39,225,255,.3); }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 6px; }
+
+  @media (max-width: 800px) {
+    .top, .bottom { grid-template-columns: 1fr; }
+    .metrics { grid-template-rows: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Smart Crowd Management</h1>
+      <div class="sub">Live queue monitor and prediction</div>
+    </div>
+    <div class="pill" id="statePill" role="status" aria-live="polite">
+      <span class="dot"></span><span id="stateText">Connecting</span>
+    </div>
+  </header>
+
+  <section class="top">
+    <div class="card hero">
+      <div class="label">Current queue</div>
+      <div class="big" id="queue">--</div>
+      <div class="note">people waiting right now</div>
+    </div>
+    <div class="metrics">
+      <div class="card metric">
+        <span class="label">Entry rate</span>
+        <span class="val"><span id="entry">--</span><span class="unit">people/min</span></span>
+      </div>
+      <div class="card metric">
+        <span class="label">Service rate</span>
+        <span class="val"><span id="service">--</span><span class="unit">people/min</span></span>
+      </div>
+      <div class="card metric predicted">
+        <span class="label" id="predLabel">Predicted queue</span>
+        <span class="val"><span id="pred">--</span><span class="unit">people</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="chart-head">
+      <div class="label">Queue size over time</div>
+      <div class="legend">
+        <span><i style="border-color: var(--cyan)"></i>Actual</span>
+        <span><i style="border-color: var(--accent); border-top-style: dashed"></i>Predicted</span>
+        <span><i style="border-color: var(--pink); border-top-style: dotted"></i>Warning threshold</span>
+      </div>
+    </div>
+    <canvas id="chart" aria-label="Line chart of queue size over time with prediction"></canvas>
+  </section>
+
+  <section class="bottom">
+    <div class="card">
+      <div class="label">Recommendation</div>
+      <div class="rec" id="rec">--</div>
+    </div>
+    <div class="card">
+      <div class="label">Estimated waiting time</div>
+      <div class="wait" id="wait">--</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Demo scenario</div>
+    <div class="controls" id="controls">
+      <button data-s="low" aria-pressed="false">Low crowd</button>
+      <button data-s="normal" aria-pressed="false">Normal</button>
+      <button data-s="busy" aria-pressed="false">Busy</button>
+      <button data-s="surge" aria-pressed="false">Sudden surge</button>
+    </div>
+  </section>
+
+  <footer id="foot">Waiting for data</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $("chart");
+const ctx = canvas.getContext("2d");
+let last = null;
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/status");
+    last = await r.json();
+    render(last);
+  } catch (e) {
+    $("stateText").textContent = "Backend offline";
+    $("foot").textContent = "Cannot reach the Flask server. Check that app.py is running.";
+  }
+}
+
+function render(d) {
+  const warn = d.state === "warning";
+  document.body.classList.toggle("warning", warn);
+  $("stateText").textContent = warn ? "Warning" : "Normal";
+  $("queue").textContent = d.queue;
+  $("entry").textContent = d.entry_rate;
+  $("service").textContent = d.service_rate;
+  $("pred").textContent = d.predicted;
+  $("predLabel").textContent = `Predicted queue in ${d.horizon} min`;
+  $("rec").textContent = d.recommendation;
+  $("wait").textContent = d.wait_minutes === null ? "Not enough data" : `${d.wait_minutes} min`;
+  $("foot").textContent = `${d.mode === "live" ? "Live data from backend" : "Simulated data"} - updated ${d.updated}`;
+  document.querySelectorAll("#controls button").forEach(b =>
+    b.setAttribute("aria-pressed", d.mode === "simulated" && b.dataset.s === d.scenario));
+  drawChart(d);
+}
+
+function cssVar(n) { return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+
+function drawChart(d) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { l: 36, r: 14, t: 12, b: 22 };
+  const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+  const hist = d.history, n = hist.length;
+  const totalX = d.history_len - 1 + d.horizon;
+  const yMax = Math.max(d.threshold * 1.4, ...hist, d.predicted) * 1.1;
+  const X = i => pad.l + (i / totalX) * pw;
+  const Y = v => pad.t + ph - (v / yMax) * ph;
+
+  const cyan = cssVar("--cyan"), accent = cssVar("--accent"), pink = cssVar("--pink");
+  ctx.font = "12px " + cssVar("--font");
+
+  // grid + y labels
+  ctx.strokeStyle = "rgba(61,123,255,.14)"; ctx.fillStyle = cssVar("--muted"); ctx.lineWidth = 1;
+  const step = yMax > 40 ? 10 : 5;
+  for (let v = 0; v <= yMax; v += step) {
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(w - pad.r, Y(v)); ctx.stroke();
+    ctx.fillText(v, 6, Y(v) + 4);
+  }
+
+  // threshold line
+  ctx.save();
+  ctx.setLineDash([2, 5]); ctx.strokeStyle = pink; ctx.lineWidth = 1.5;
+  ctx.shadowColor = pink; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.moveTo(pad.l, Y(d.threshold)); ctx.lineTo(w - pad.r, Y(d.threshold)); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = pink; ctx.fillText(`Threshold ${d.threshold}`, pad.l + 6, Y(d.threshold) - 6);
+
+  if (n < 2) return;
+
+  // area under actual line
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
+  grad.addColorStop(0, "rgba(39,225,255,.28)"); grad.addColorStop(1, "rgba(39,225,255,0)");
+  ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+  hist.forEach((v, i) => ctx.lineTo(X(i), Y(v)));
+  ctx.lineTo(X(n - 1), Y(0)); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // actual line
+  ctx.save();
+  ctx.strokeStyle = cyan; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
+  ctx.shadowColor = cyan; ctx.shadowBlur = 10;
+  ctx.beginPath(); hist.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))); ctx.stroke();
+  ctx.restore();
+
+  // predicted projection
+  const nx = X(n - 1), ny = Y(hist[n - 1]);
+  const px = X(n - 1 + d.horizon), py = Y(d.predicted);
+  ctx.save();
+  ctx.setLineDash([7, 6]); ctx.strokeStyle = accent; ctx.lineWidth = 2.5;
+  ctx.shadowColor = accent; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(px, py); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(nx, ny, 4, 0, Math.PI * 2); ctx.fillStyle = cyan; ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+document.querySelectorAll("#controls button").forEach(b => b.addEventListener("click", async () => {
+  await fetch("/api/scenario", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario: b.dataset.s })
+  });
+  refresh();
+}));
+
+window.addEventListener("resize", () => last && drawChart(last));
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
